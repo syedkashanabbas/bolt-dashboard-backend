@@ -45,6 +45,7 @@ export const register = async (req, res) => {
 };
 
 // LOGIN
+// LOGIN
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -65,15 +66,26 @@ export const login = async (req, res) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false, // change to true in production
+      secure: false,
       sameSite: "strict",
     });
 
-    res.json({ accessToken });
+    // return token + user info
+    res.json({
+      accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        organizationId: user.tenant_id,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // REFRESH TOKEN
 export const refresh = (req, res) => {
