@@ -34,7 +34,7 @@ app.use(cookieParser());
     const [rows] = await pool.query("SELECT 1+1 AS result");
     console.log("✅ DB Connected. Test Result:", rows[0].result);
   } catch (err) {
-    console.error("❌ DB Connection Failed:", err.message);
+    console.error("DB Connection Failed:", err.message);
   }
 })();
 
@@ -56,5 +56,5 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+  console.log(`Server running on http://localhost:${PORT}`)
 );
