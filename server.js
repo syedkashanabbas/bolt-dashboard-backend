@@ -4,7 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import pool from "./config/db.js";
-
+import profileRoutes from "./routes/profileRoutes.js";
 // routes
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -53,6 +53,9 @@ app.use("/api/tenants", tenantRoutes);
 app.use("/api/seed", seederRoutes);
 app.use("/api/organizations", orgRoutes);
 app.use("/api/dashboard/", dashboardRoutes);
+
+
+app.use("/api/profile", profileRoutes);
 
 // catch-all for undefined routes
 app.use((req, res) => {
