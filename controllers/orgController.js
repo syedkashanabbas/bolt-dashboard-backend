@@ -1,28 +1,38 @@
 import pool from "../config/db.js";
 
-// Get all organizations
+// helper: insert audit log
+const logAction = async (userId, action, entity, entityId, changes = null) => {
+  await pool.query(
+    "INSERT INTO audit_logs (user_id, action, entity, entity_id, changes) VALUES (?, ?, ?, ?, ?)",
+    [userId, action, entity, entityId, JSON.stringify(changes)]
+  );
+};
+
+// Get all orgs
 export const getOrganizations = async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM organizations");
-    res.json(rows);
+    const [rows] = await pool.query("SELECT * FROM organizations ORDER BY created_at DESC");
+    res.json({ success: true, organizations: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Get single organization
+// Get org by ID
 export const getOrganizationById = async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.query("SELECT * FROM organizations WHERE id = ?", [id]);
-    if (rows.length === 0) return res.status(404).json({ message: "Organization not found" });
-    res.json(rows[0]);
+    if (!rows.length) {
+      return res.status(404).json({ success: false, message: "Organization not found" });
+    }
+    res.json({ success: true, organization: rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Create organization
+// Create org
 export const createOrganization = async (req, res) => {
   try {
     const { name, domain, plan, status } = req.body;
@@ -32,13 +42,15 @@ export const createOrganization = async (req, res) => {
       [name, domain, plan, status || "active"]
     );
 
+    await logAction(req.user.id, "CREATE", "organization", result.insertId, { name, domain, plan, status });
+
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Update organization
+// Update org
 export const updateOrganization = async (req, res) => {
   try {
     const { id } = req.params;
@@ -49,17 +61,23 @@ export const updateOrganization = async (req, res) => {
       [name, domain, plan, status, id]
     );
 
+    await logAction(req.user.id, "UPDATE", "organization", id, { name, domain, plan, status });
+
     res.json({ success: true, message: "Organization updated" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Delete organization
+// Delete org
 export const deleteOrganization = async (req, res) => {
   try {
     const { id } = req.params;
+
     await pool.query("DELETE FROM organizations WHERE id = ?", [id]);
+
+    await logAction(req.user.id, "DELETE", "organization", id);
+
     res.json({ success: true, message: "Organization deleted" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
+import { logAudit } from "../utils/auditLogger.js";
 
 // GET logged-in user's profile
 export const getProfile = async (req, res) => {
@@ -19,17 +20,17 @@ export const getProfile = async (req, res) => {
   }
 };
 
-// UPDATE profile (name, email, password)
-// UPDATE profile (name, email, password)
+// UPDATE profile (with audit logging)
 export const updateProfile = async (req, res) => {
   try {
     const { name, email, currentPassword, newPassword } = req.body;
 
-    // fetch user
+    // fetch old user
     const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [req.user.id]);
     if (!rows.length) return res.status(404).json({ message: "User not found" });
 
     const user = rows[0];
+    const oldValues = { name: user.name, email: user.email };
 
     // verify current password if new password is requested
     if (newPassword) {
@@ -54,15 +55,25 @@ export const updateProfile = async (req, res) => {
 
     await pool.query(query, params);
 
-    // 👇 fetch updated user again
+    // fetch updated user
     const [updatedRows] = await pool.query(
       "SELECT id, name, email, role, tenant_id as organizationId FROM users WHERE id = ?",
       [req.user.id]
     );
+    const updatedUser = updatedRows[0];
 
-    res.json(updatedRows[0]); // 👈 directly return updated user
+    // log audit
+    await logAudit(
+      req.user.id,
+      "UPDATE_PROFILE",
+      "users",
+      req.user.id,
+      oldValues,
+      { name: updatedUser.name, email: updatedUser.email }
+    );
+
+    res.json(updatedUser);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-

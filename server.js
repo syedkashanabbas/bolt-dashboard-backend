@@ -12,6 +12,7 @@ import tenantRoutes from "./routes/tenantRoutes.js";
 import seederRoutes from "./routes/seederRoutes.js";
 import orgRoutes from "./routes/orgRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import auditRoutes from "./routes/auditRoutes.js";
 
 
 dotenv.config();
@@ -54,7 +55,7 @@ app.use("/api/seed", seederRoutes);
 app.use("/api/organizations", orgRoutes);
 app.use("/api/dashboard/", dashboardRoutes);
 
-
+app.use("/api/audit", auditRoutes);
 app.use("/api/profile", profileRoutes);
 
 // catch-all for undefined routes

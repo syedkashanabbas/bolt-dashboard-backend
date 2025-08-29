@@ -1,12 +1,12 @@
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
+import { logAudit } from "../utils/auditLogger.js";
 
 // Get all staff for a tenant
 export const getUsers = async (req, res) => {
   try {
     const { tenantId, role } = req.user;
 
-    // SuperAdmin can see all
     let query = "SELECT id, name, email, role, tenant_id FROM users";
     let params = [];
 
@@ -22,18 +22,21 @@ export const getUsers = async (req, res) => {
   }
 };
 
-// Create staff user (Admin inside a tenant can do this)
+// Create staff user
 export const createUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-    const { tenantId } = req.user;
+    const { tenantId, id: actorId } = req.user;
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await pool.query(
+    const [result] = await pool.query(
       "INSERT INTO users (name, email, password, role, tenant_id) VALUES (?, ?, ?, ?, ?)",
       [name, email, hashedPassword, role || "User", tenantId]
     );
+
+    // log audit
+    await logAudit(actorId, "CREATE", "users", result.insertId, { name, email, role });
 
     res.status(201).json({ success: true, message: "User created" });
   } catch (err) {
@@ -46,18 +49,25 @@ export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, role } = req.body;
-    const { tenantId, role: userRole } = req.user;
+    const { tenantId, role: userRole, id: actorId } = req.user;
 
     let query = "UPDATE users SET name = ?, role = ? WHERE id = ?";
     let params = [name, role, id];
 
-    // Restrict to tenant unless SuperAdmin
     if (userRole !== "SuperAdmin") {
       query += " AND tenant_id = ?";
       params.push(tenantId);
     }
 
-    await pool.query(query, params);
+    const [result] = await pool.query(query, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "User not found or not allowed" });
+    }
+
+    // log audit
+    await logAudit(actorId, "UPDATE", "users", id, { name, role });
+
     res.json({ success: true, message: "User updated" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -68,7 +78,7 @@ export const updateUser = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { tenantId, role } = req.user;
+    const { tenantId, role, id: actorId } = req.user;
 
     let query = "DELETE FROM users WHERE id = ?";
     let params = [id];
@@ -78,7 +88,15 @@ export const deleteUser = async (req, res) => {
       params.push(tenantId);
     }
 
-    await pool.query(query, params);
+    const [result] = await pool.query(query, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "User not found or not allowed" });
+    }
+
+    // log audit
+    await logAudit(actorId, "DELETE", "users", id);
+
     res.json({ success: true, message: "User deleted" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

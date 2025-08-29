@@ -11,17 +11,19 @@ const generateAccessToken = (user) => {
 };
 
 const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: "7d",
-  });
+  return jwt.sign(
+    { id: user.id, role: user.role, tenantId: user.tenant_id },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: "7d" }
+  );
 };
 
-// REGISTER (super admin will create tenants later, for now normal register)
+// REGISTER (normal flow, SuperAdmin will add tenants later)
 export const register = async (req, res) => {
   try {
     const { name, email, password, tenant_id, role } = req.body;
 
-    // check if user exists
+    // Check if user already exists
     const [existing] = await pool.query("SELECT * FROM users WHERE email = ?", [
       email,
     ]);
@@ -36,15 +38,17 @@ export const register = async (req, res) => {
       [name, email, hashedPassword, tenant_id || null, role || "User"]
     );
 
-    res
-      .status(201)
-      .json({ message: "User registered", userId: result.insertId });
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      userId: result.insertId,
+    });
   } catch (err) {
+    console.error("Register Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
-// LOGIN
 // LOGIN
 export const login = async (req, res) => {
   try {
@@ -64,14 +68,17 @@ export const login = async (req, res) => {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
+    // store refreshToken in cookie
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production", // only secure in prod
       sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    // return token + user info
+    // Return token + user info
     res.json({
+      success: true,
       accessToken,
       user: {
         id: user.id,
@@ -82,10 +89,10 @@ export const login = async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("Login Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // REFRESH TOKEN
 export const refresh = (req, res) => {
@@ -96,6 +103,12 @@ export const refresh = (req, res) => {
     if (err) return res.status(403).json({ message: "Invalid refresh token" });
 
     const newAccessToken = generateAccessToken(user);
-    res.json({ accessToken: newAccessToken });
+    res.json({ success: true, accessToken: newAccessToken });
   });
+};
+
+// LOGOUT (clear cookie)
+export const logout = (req, res) => {
+  res.clearCookie("refreshToken", { httpOnly: true, sameSite: "strict" });
+  res.json({ success: true, message: "Logged out successfully" });
 };
