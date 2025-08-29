@@ -10,6 +10,9 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import tenantRoutes from "./routes/tenantRoutes.js";
 import seederRoutes from "./routes/seederRoutes.js";
+import orgRoutes from "./routes/orgRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+
 
 dotenv.config();
 const app = express();
@@ -40,7 +43,7 @@ app.use(cookieParser());
 
 // base route
 app.get("/", (req, res) => {
-  res.send("🚀 SaaS API is running");
+  res.send("SaaS API is running");
 });
 
 // api routes
@@ -48,6 +51,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/seed", seederRoutes);
+app.use("/api/organizations", orgRoutes);
+app.use("/api/dashboard/", dashboardRoutes);
 
 // catch-all for undefined routes
 app.use((req, res) => {
