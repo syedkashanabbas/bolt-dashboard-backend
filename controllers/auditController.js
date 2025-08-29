@@ -4,13 +4,14 @@ import pool from "../config/db.js";
 export const getAuditLogs = async (req, res) => {
   try {
     let query = `
-      SELECT a.id, a.user_id, u.name as userName, a.action, a.entity, a.entity_id, a.changes, a.created_at
+      SELECT a.id, a.user_id, u.name as userName, a.action, 
+             a.table_name as entity, a.record_id as entity_id, 
+             a.changes, a.created_at
       FROM audit_logs a 
       JOIN users u ON a.user_id = u.id
     `;
     let params = [];
 
-    // Filter based on role
     if (req.user.role === "Admin") {
       query += " WHERE u.tenant_id = ?";
       params.push(req.user.tenantId);
@@ -29,3 +30,4 @@ export const getAuditLogs = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
